@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  downtime-detector:
+    build: .
+    container_name: downtime-detector
+    restart: unless-stopped
+    environment:
+      - TAILSCALE_API_KEY=${TAILSCALE_API_KEY}
+      - TAILSCALE_TAILNET=${TAILSCALE_TAILNET}
+      - DEVICE_NAME=${DEVICE_NAME:-apple-tv}
+      - VENDOR_PHONE_NUMBER=${VENDOR_PHONE_NUMBER}
+      - ALERT_THRESHOLD_MINUTES=${ALERT_THRESHOLD_MINUTES:-5}
+      - CHECK_INTERVAL_MINUTES=${CHECK_INTERVAL_MINUTES:-5}
+      - CRON_EXPRESSION=${CRON_EXPRESSION:-}
+    volumes:
+      # CRITICAL: Persistent storage for WhatsApp session
+      - whatsapp_session:/app/.wwebjs_auth
+      # Optional: Mount env file if not using environment variables
+      - ./.env:/app/.env:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # Named volume for WhatsApp session persistence
+  whatsapp_session:
+    driver: local
