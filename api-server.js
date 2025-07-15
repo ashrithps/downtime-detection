@@ -136,7 +136,7 @@ class ApiServer {
     });
 
     // 404 handler
-    this.app.use('*', (req, res) => {
+    this.app.use((req, res) => {
       res.status(404).json({
         error: 'Not found',
         message: 'The requested endpoint does not exist'
