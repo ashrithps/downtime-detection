@@ -30,6 +30,10 @@ class WhatsAppClient {
 
     this.client.on('ready', async () => {
       console.log('✅ WhatsApp client is ready!');
+      
+      // Wait a moment for WhatsApp Web to be fully ready
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       this.isReady = true;
       this.resolveReady();
       
@@ -39,6 +43,7 @@ class WhatsAppClient {
         console.log('✅ Test message sent successfully');
       } catch (error) {
         console.error('❌ Failed to send test message:', error.message);
+        console.error('❌ WhatsApp may not be fully ready yet');
       }
     });
 
@@ -69,11 +74,24 @@ class WhatsAppClient {
     try {
       const formattedNumber = phoneNumber.includes('@') ? phoneNumber : `${phoneNumber}@c.us`;
       console.log(`📤 Sending message to ${phoneNumber}...`);
+      
+      // Check if client is actually ready
+      const info = await this.client.getState();
+      console.log(`📱 WhatsApp client state: ${info}`);
+      
       await this.client.sendMessage(formattedNumber, message);
       console.log(`✅ Message sent to ${phoneNumber}`);
       return true;
     } catch (error) {
       console.error(`❌ Failed to send message to ${phoneNumber}:`, error.message);
+      console.error('❌ Error details:', error);
+      
+      // Reset ready state if there's an error
+      if (error.message.includes('Session closed') || error.message.includes('not authenticated')) {
+        this.isReady = false;
+        console.log('⚠️  WhatsApp client state reset due to error');
+      }
+      
       return false;
     }
   }
