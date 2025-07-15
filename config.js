@@ -18,6 +18,10 @@ function loadConfig() {
     checkInterval: {
       minutes: parseInt(process.env.CHECK_INTERVAL_MINUTES) || 5,
       cronExpression: process.env.CRON_EXPRESSION || null
+    },
+    api: {
+      key: process.env.API_KEY,
+      port: parseInt(process.env.API_PORT) || 3000
     }
   };
   
@@ -30,7 +34,8 @@ function validateConfig(config) {
     { key: 'TAILSCALE_API_KEY', value: config.tailscale.apiKey },
     { key: 'TAILSCALE_TAILNET', value: config.tailscale.tailnet },
     { key: 'DEVICE_NAME', value: config.device.name },
-    { key: 'VENDOR_PHONE_NUMBER', value: config.notifications.phoneNumber }
+    { key: 'VENDOR_PHONE_NUMBER', value: config.notifications.phoneNumber },
+    { key: 'API_KEY', value: config.api.key }
   ];
   
   for (const field of required) {

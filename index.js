@@ -1,12 +1,14 @@
 const cron = require('node-cron');
 const { loadConfig } = require('./config');
 const DowntimeDetector = require('./downtime-detector');
+const ApiServer = require('./api-server');
 
 class DowntimeMonitor {
   constructor() {
     this.config = loadConfig();
     this.detector = null;
     this.cronJob = null;
+    this.apiServer = null;
   }
 
   async start() {
@@ -20,6 +22,10 @@ class DowntimeMonitor {
     await this.checkSystemStatus();
 
     this.detector = new DowntimeDetector(this.config);
+
+    // Start API server
+    this.apiServer = new ApiServer(this.detector.whatsappClient);
+    this.apiServer.start();
 
     this.cronJob = cron.schedule(this.config.checkInterval.cronExpression, async () => {
       await this.detector.checkDeviceStatus();
@@ -45,6 +51,10 @@ class DowntimeMonitor {
     if (this.cronJob) {
       this.cronJob.stop();
       console.log('Monitoring stopped.');
+    }
+    
+    if (this.apiServer) {
+      this.apiServer.stop();
     }
     
     if (this.detector) {

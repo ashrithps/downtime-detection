@@ -36,7 +36,7 @@ class WhatsAppClient {
       // Send test message on startup
       try {
         await this.sendMessage('919742462600', '✅ WhatsApp monitoring system is now active and ready!');
-        console.log('✅ Test message sent successfully to 919742462600');
+        console.log('✅ Test message sent successfully');
       } catch (error) {
         console.error('❌ Failed to send test message:', error.message);
       }
@@ -53,16 +53,8 @@ class WhatsAppClient {
       this.isReady = false;
     });
 
-    this.client.on('loading_screen', (percent, message) => {
-      console.log(`📱 WhatsApp loading: ${percent}% - ${message}`);
-    });
-
     this.client.on('authenticated', () => {
       console.log('🔐 WhatsApp authentication successful');
-    });
-
-    this.client.on('message', (msg) => {
-      console.log(`📩 Received message from ${msg.from}: ${msg.body}`);
     });
 
     console.log('🚀 Starting WhatsApp client initialization...');
@@ -78,7 +70,7 @@ class WhatsAppClient {
       const formattedNumber = phoneNumber.includes('@') ? phoneNumber : `${phoneNumber}@c.us`;
       console.log(`📤 Sending message to ${phoneNumber}...`);
       await this.client.sendMessage(formattedNumber, message);
-      console.log(`✅ Message sent to ${phoneNumber}: ${message}`);
+      console.log(`✅ Message sent to ${phoneNumber}`);
       return true;
     } catch (error) {
       console.error(`❌ Failed to send message to ${phoneNumber}:`, error.message);
