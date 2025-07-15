@@ -1,0 +1,16 @@
+# Tailscale Configuration
+TAILSCALE_API_KEY=your_tailscale_api_key_here
+TAILSCALE_TAILNET=your_tailnet_name_here
+
+# Device Configuration
+DEVICE_NAME=apple-tv
+
+# Notification Configuration
+VENDOR_PHONE_NUMBER=your_internet_vendor_phone_number
+
+# Monitoring Configuration
+ALERT_THRESHOLD_MINUTES=5
+CHECK_INTERVAL_MINUTES=5
+
+# Optional: Custom cron expression (leave empty to use CHECK_INTERVAL_MINUTES)
+# CRON_EXPRESSION=*/5 * * * *
