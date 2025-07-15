@@ -23,6 +23,11 @@ class DowntimeMonitor {
 
     this.detector = new DowntimeDetector(this.config);
 
+    // Wait for WhatsApp client to be ready before starting API server
+    console.log('⏳ Waiting for WhatsApp client to be ready...');
+    await this.detector.whatsappClient.waitForReady();
+    console.log('✅ WhatsApp client is ready, starting API server...');
+
     // Start API server
     this.apiServer = new ApiServer(this.detector.whatsappClient);
     this.apiServer.start();
