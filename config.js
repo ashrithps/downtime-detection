@@ -10,7 +10,10 @@ function loadConfig() {
       name: process.env.DEVICE_NAME || 'apple-tv'
     },
     notifications: {
-      phoneNumber: process.env.VENDOR_PHONE_NUMBER
+      phoneNumbers: process.env.VENDOR_PHONE_NUMBER ? process.env.VENDOR_PHONE_NUMBER.split(',').map(num => num.trim()) : [],
+      downtimeAlertMessage: process.env.DOWNTIME_ALERT_MESSAGE || '🚨 INTERNET DOWNTIME ALERT 🚨\\n\\nDevice: {{deviceName}}\\nStatus: OFFLINE\\nDuration: {{duration}} minutes\\n\\nPlease check the internet connection immediately.\\n\\nTime: {{timestamp}}',
+      recoveryMessage: process.env.RECOVERY_MESSAGE || '✅ INTERNET RECOVERED\\n\\nDevice: {{deviceName}}\\nStatus: ONLINE\\nDowntime Duration: {{duration}} minutes\\n\\nConnection has been restored.\\n\\nTime: {{timestamp}}',
+      repeatAlertInterval: parseInt(process.env.REPEAT_ALERT_INTERVAL_MINUTES) || 60
     },
     alertThreshold: {
       minutes: parseInt(process.env.ALERT_THRESHOLD_MINUTES) || 5
@@ -34,7 +37,7 @@ function validateConfig(config) {
     { key: 'TAILSCALE_API_KEY', value: config.tailscale.apiKey },
     { key: 'TAILSCALE_TAILNET', value: config.tailscale.tailnet },
     { key: 'DEVICE_NAME', value: config.device.name },
-    { key: 'VENDOR_PHONE_NUMBER', value: config.notifications.phoneNumber },
+    { key: 'VENDOR_PHONE_NUMBER', value: config.notifications.phoneNumbers.length > 0 ? config.notifications.phoneNumbers.join(',') : null },
     { key: 'API_KEY', value: config.api.key }
   ];
   

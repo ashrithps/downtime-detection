@@ -12,6 +12,7 @@ class DowntimeDetector {
       lastOnlineTime: new Date(),
       downSince: null,
       alertSent: false,
+      lastAlertTime: null,
       recoveryNotificationSent: false
     };
   }
@@ -35,6 +36,7 @@ class DowntimeDetector {
           this.deviceState.lastOnlineTime = now;
           this.deviceState.downSince = null;
           this.deviceState.alertSent = false;
+          this.deviceState.lastAlertTime = null;
           this.deviceState.recoveryNotificationSent = false;
         }
       } else {
@@ -43,14 +45,27 @@ class DowntimeDetector {
           this.deviceState.isOnline = false;
           this.deviceState.downSince = now;
           this.deviceState.alertSent = false;
+          this.deviceState.lastAlertTime = null;
           this.deviceState.recoveryNotificationSent = false;
         } else {
           const downtimeDuration = Math.floor((now - this.deviceState.downSince) / (1000 * 60));
           
+          // Send initial alert after threshold is reached
           if (downtimeDuration >= this.config.alertThreshold.minutes && !this.deviceState.alertSent) {
-            console.log(`Device has been offline for ${downtimeDuration} minutes, sending alert`);
+            console.log(`Device has been offline for ${downtimeDuration} minutes, sending initial alert`);
             await this.sendDowntimeAlert(downtimeDuration);
             this.deviceState.alertSent = true;
+            this.deviceState.lastAlertTime = now;
+          }
+          
+          // Send repeat alerts at configured interval
+          if (this.deviceState.alertSent && this.deviceState.lastAlertTime) {
+            const minutesSinceLastAlert = Math.floor((now - this.deviceState.lastAlertTime) / (1000 * 60));
+            if (minutesSinceLastAlert >= this.config.notifications.repeatAlertInterval) {
+              console.log(`Device still offline after ${downtimeDuration} minutes, sending repeat alert`);
+              await this.sendDowntimeAlert(downtimeDuration);
+              this.deviceState.lastAlertTime = now;
+            }
           }
         }
       }
@@ -63,16 +78,18 @@ class DowntimeDetector {
 
   async sendDowntimeAlert(downtimeDuration) {
     try {
-      const success = await this.whatsappClient.sendDowntimeAlert(
-        this.config.notifications.phoneNumber,
+      const results = await this.whatsappClient.sendDowntimeAlert(
+        this.config.notifications.phoneNumbers,
         this.config.device.name,
-        downtimeDuration
+        downtimeDuration,
+        this.config.notifications.downtimeAlertMessage
       );
       
-      if (success) {
-        console.log('Downtime alert sent successfully');
+      const successCount = results.filter(r => r.success).length;
+      if (successCount > 0) {
+        console.log(`Downtime alert sent successfully to ${successCount} recipients`);
       } else {
-        console.error('Failed to send downtime alert');
+        console.error('Failed to send downtime alert to any recipients');
       }
     } catch (error) {
       console.error('Error sending downtime alert:', error.message);
@@ -81,16 +98,18 @@ class DowntimeDetector {
 
   async sendRecoveryNotification(downtimeDuration) {
     try {
-      const success = await this.whatsappClient.sendRecoveryNotification(
-        this.config.notifications.phoneNumber,
+      const results = await this.whatsappClient.sendRecoveryNotification(
+        this.config.notifications.phoneNumbers,
         this.config.device.name,
-        downtimeDuration
+        downtimeDuration,
+        this.config.notifications.recoveryMessage
       );
       
-      if (success) {
-        console.log('Recovery notification sent successfully');
+      const successCount = results.filter(r => r.success).length;
+      if (successCount > 0) {
+        console.log(`Recovery notification sent successfully to ${successCount} recipients`);
       } else {
-        console.error('Failed to send recovery notification');
+        console.error('Failed to send recovery notification to any recipients');
       }
     } catch (error) {
       console.error('Error sending recovery notification:', error.message);

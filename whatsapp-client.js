@@ -37,14 +37,9 @@ class WhatsAppClient {
       this.isReady = true;
       this.resolveReady();
       
-      // Send test message on startup
-      try {
-        await this.sendMessage('919742462600', '✅ WhatsApp monitoring system is now active and ready!');
-        console.log('✅ Test message sent successfully');
-      } catch (error) {
-        console.error('❌ Failed to send test message:', error.message);
-        console.error('❌ WhatsApp may not be fully ready yet');
-      }
+      // Send test message on startup (will be sent to first number in the list)
+      // Note: Test message number will be determined by the calling code
+      console.log('✅ WhatsApp client ready for messaging');
     });
 
     this.client.on('auth_failure', (msg) => {
@@ -96,16 +91,48 @@ class WhatsAppClient {
     }
   }
 
-  async sendDowntimeAlert(phoneNumber, deviceName, duration) {
-    const message = `🚨 INTERNET DOWNTIME ALERT 🚨\n\nDevice: ${deviceName}\nStatus: OFFLINE\nDuration: ${duration} minutes\n\nPlease check the internet connection immediately.\n\nTime: ${new Date().toLocaleString()}`;
-    
-    return await this.sendMessage(phoneNumber, message);
+  replacePlaceholders(template, deviceName, duration) {
+    return template
+      .replace(/{{deviceName}}/g, deviceName)
+      .replace(/{{duration}}/g, duration)
+      .replace(/{{timestamp}}/g, new Date().toLocaleString())
+      .replace(/\\n/g, '\n'); // Convert literal \n to actual newlines
   }
 
-  async sendRecoveryNotification(phoneNumber, deviceName, downtimeDuration) {
-    const message = `✅ INTERNET RECOVERED\n\nDevice: ${deviceName}\nStatus: ONLINE\nDowntime Duration: ${downtimeDuration} minutes\n\nConnection has been restored.\n\nTime: ${new Date().toLocaleString()}`;
+  async sendToMultipleRecipients(phoneNumbers, message) {
+    const results = [];
     
-    return await this.sendMessage(phoneNumber, message);
+    for (const phoneNumber of phoneNumbers) {
+      try {
+        const success = await this.sendMessage(phoneNumber, message);
+        results.push({ phoneNumber, success });
+      } catch (error) {
+        console.error(`Failed to send to ${phoneNumber}:`, error.message);
+        results.push({ phoneNumber, success: false, error: error.message });
+      }
+    }
+    
+    return results;
+  }
+
+  async sendDowntimeAlert(phoneNumbers, deviceName, duration, messageTemplate) {
+    const message = this.replacePlaceholders(messageTemplate, deviceName, duration);
+    const results = await this.sendToMultipleRecipients(phoneNumbers, message);
+    
+    const successCount = results.filter(r => r.success).length;
+    console.log(`Downtime alert sent to ${successCount}/${phoneNumbers.length} recipients`);
+    
+    return results;
+  }
+
+  async sendRecoveryNotification(phoneNumbers, deviceName, downtimeDuration, messageTemplate) {
+    const message = this.replacePlaceholders(messageTemplate, deviceName, downtimeDuration);
+    const results = await this.sendToMultipleRecipients(phoneNumbers, message);
+    
+    const successCount = results.filter(r => r.success).length;
+    console.log(`Recovery notification sent to ${successCount}/${phoneNumbers.length} recipients`);
+    
+    return results;
   }
 
   async waitForReady(timeout = 60000) {

@@ -16,7 +16,7 @@ class DowntimeMonitor {
     console.log(`Monitoring device: ${this.config.device.name}`);
     console.log(`Check interval: ${this.config.checkInterval.minutes} minutes`);
     console.log(`Alert threshold: ${this.config.alertThreshold.minutes} minutes`);
-    console.log(`Notification phone: ${this.config.notifications.phoneNumber}`);
+    console.log(`Notification phones: ${this.config.notifications.phoneNumbers.join(', ')}`);
     console.log('---');
 
     await this.checkSystemStatus();
@@ -27,6 +27,19 @@ class DowntimeMonitor {
     console.log('⏳ Waiting for WhatsApp client to be ready...');
     await this.detector.whatsappClient.waitForReady();
     console.log('✅ WhatsApp client is ready, starting API server...');
+    
+    // Send test message to first phone number
+    if (this.config.notifications.phoneNumbers.length > 0) {
+      try {
+        await this.detector.whatsappClient.sendMessage(
+          this.config.notifications.phoneNumbers[0], 
+          '✅ WhatsApp monitoring system is now active and ready!'
+        );
+        console.log(`✅ Test message sent to ${this.config.notifications.phoneNumbers[0]}`);
+      } catch (error) {
+        console.error('❌ Failed to send test message:', error.message);
+      }
+    }
 
     // Start API server
     this.apiServer = new ApiServer(this.detector.whatsappClient);
