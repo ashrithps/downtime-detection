@@ -91,23 +91,8 @@ class DowntimeMonitor {
       console.log(`❌ Tailscale API: ${tailscaleStatus.message}`);
     }
     
-    // Check WhatsApp connection
-    const WhatsAppClient = require('./whatsapp-client');
-    const whatsappClient = new WhatsAppClient();
-    
-    console.log('📱 WhatsApp: Initializing connection...');
-    
-    try {
-      await whatsappClient.waitForReady(30000);
-      console.log('✅ WhatsApp: Connected and ready');
-    } catch (error) {
-      console.log(`❌ WhatsApp: ${error.message}`);
-    }
-    
-    const whatsappStatus = whatsappClient.getStatus();
-    if (!whatsappStatus.ready) {
-      console.log(`⚠️  WhatsApp: ${whatsappStatus.message}`);
-    }
+    // WhatsApp connection will be checked when DowntimeDetector is created
+    console.log('📱 WhatsApp: Will be initialized with monitoring system');
     
     console.log('---');
   }
