@@ -92,11 +92,23 @@ class WhatsAppClient {
   }
 
   replacePlaceholders(template, deviceName, duration) {
+    // Format timestamp in IST
+    const now = new Date();
+    const istTime = now.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
     return template
       .replace(/{{deviceName}}/g, deviceName)
       .replace(/{{duration}}/g, duration)
-      .replace(/{{timestamp}}/g, new Date().toLocaleString())
-      .replace(/\\n/g, '\n'); // Convert literal \n to actual newlines
+      .replace(/{{timestamp}}/g, istTime)
+      .split('\\n').join('\n'); // Convert all \n sequences to actual newlines
   }
 
   async sendToMultipleRecipients(phoneNumbers, message) {
