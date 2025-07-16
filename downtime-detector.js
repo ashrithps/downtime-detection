@@ -1,10 +1,22 @@
 const TailscaleClient = require('./tailscale-client');
+const CloudflareClient = require('./cloudflare-client');
 const WhatsAppClient = require('./whatsapp-client');
 
 class DowntimeDetector {
   constructor(config) {
     this.config = config;
-    this.tailscaleClient = new TailscaleClient(config.tailscale.apiKey, config.tailscale.tailnet);
+    
+    // Initialize the appropriate client based on configuration
+    if (config.tailscale.apiKey && config.tailscale.tailnet) {
+      this.networkClient = new TailscaleClient(config.tailscale.apiKey, config.tailscale.tailnet);
+      this.clientType = 'tailscale';
+    } else if (config.cloudflare.apiToken && config.cloudflare.accountId) {
+      this.networkClient = new CloudflareClient(config.cloudflare.apiToken, config.cloudflare.accountId);
+      this.clientType = 'cloudflare';
+    } else {
+      throw new Error('No valid network client configuration found');
+    }
+    
     this.whatsappClient = new WhatsAppClient();
     
     this.deviceState = {
@@ -19,13 +31,20 @@ class DowntimeDetector {
 
   async checkDeviceStatus() {
     try {
-      const isOnline = await this.tailscaleClient.isDeviceOnline(this.config.device.name);
+      const targetName = this.clientType === 'cloudflare' 
+        ? this.config.cloudflare.tunnelName 
+        : this.config.device.name;
+      
+      const isOnline = this.clientType === 'cloudflare'
+        ? await this.networkClient.isTunnelOnline(targetName)
+        : await this.networkClient.isDeviceOnline(targetName);
+      
       const now = new Date();
       
       if (isOnline) {
         if (!this.deviceState.isOnline) {
           const downtimeDuration = Math.floor((now - this.deviceState.downSince) / (1000 * 60));
-          console.log(`Device ${this.config.device.name} is back online after ${downtimeDuration} minutes`);
+          console.log(`${this.clientType === 'cloudflare' ? 'Tunnel' : 'Device'} ${targetName} is back online after ${downtimeDuration} minutes`);
           
           if (this.deviceState.alertSent && !this.deviceState.recoveryNotificationSent) {
             await this.sendRecoveryNotification(downtimeDuration);
@@ -41,7 +60,7 @@ class DowntimeDetector {
         }
       } else {
         if (this.deviceState.isOnline) {
-          console.log(`Device ${this.config.device.name} went offline`);
+          console.log(`${this.clientType === 'cloudflare' ? 'Tunnel' : 'Device'} ${targetName} went offline`);
           this.deviceState.isOnline = false;
           this.deviceState.downSince = now;
           this.deviceState.alertSent = false;
@@ -52,7 +71,7 @@ class DowntimeDetector {
           
           // Send initial alert after threshold is reached
           if (downtimeDuration >= this.config.alertThreshold.minutes && !this.deviceState.alertSent) {
-            console.log(`Device has been offline for ${downtimeDuration} minutes, sending initial alert`);
+            console.log(`${this.clientType === 'cloudflare' ? 'Tunnel' : 'Device'} has been offline for ${downtimeDuration} minutes, sending initial alert`);
             await this.sendDowntimeAlert(downtimeDuration);
             this.deviceState.alertSent = true;
             this.deviceState.lastAlertTime = now;
@@ -62,7 +81,7 @@ class DowntimeDetector {
           if (this.deviceState.alertSent && this.deviceState.lastAlertTime) {
             const minutesSinceLastAlert = Math.floor((now - this.deviceState.lastAlertTime) / (1000 * 60));
             if (minutesSinceLastAlert >= this.config.notifications.repeatAlertInterval) {
-              console.log(`Device still offline after ${downtimeDuration} minutes, sending repeat alert`);
+              console.log(`${this.clientType === 'cloudflare' ? 'Tunnel' : 'Device'} still offline after ${downtimeDuration} minutes, sending repeat alert`);
               await this.sendDowntimeAlert(downtimeDuration);
               this.deviceState.lastAlertTime = now;
             }
@@ -78,9 +97,13 @@ class DowntimeDetector {
 
   async sendDowntimeAlert(downtimeDuration) {
     try {
+      const targetName = this.clientType === 'cloudflare' 
+        ? this.config.cloudflare.tunnelName 
+        : this.config.device.name;
+      
       const results = await this.whatsappClient.sendDowntimeAlert(
         this.config.notifications.phoneNumbers,
-        this.config.device.name,
+        targetName,
         downtimeDuration,
         this.config.notifications.downtimeAlertMessage
       );
@@ -98,9 +121,13 @@ class DowntimeDetector {
 
   async sendRecoveryNotification(downtimeDuration) {
     try {
+      const targetName = this.clientType === 'cloudflare' 
+        ? this.config.cloudflare.tunnelName 
+        : this.config.device.name;
+      
       const results = await this.whatsappClient.sendRecoveryNotification(
         this.config.notifications.phoneNumbers,
-        this.config.device.name,
+        targetName,
         downtimeDuration,
         this.config.notifications.recoveryMessage
       );
@@ -119,12 +146,15 @@ class DowntimeDetector {
   logStatus() {
     const status = this.deviceState.isOnline ? 'ONLINE' : 'OFFLINE';
     const timestamp = new Date().toLocaleString();
+    const targetName = this.clientType === 'cloudflare' 
+      ? this.config.cloudflare.tunnelName 
+      : this.config.device.name;
     
     if (this.deviceState.isOnline) {
-      console.log(`[${timestamp}] ${this.config.device.name}: ${status}`);
+      console.log(`[${timestamp}] ${targetName}: ${status}`);
     } else {
       const downtimeDuration = Math.floor((new Date() - this.deviceState.downSince) / (1000 * 60));
-      console.log(`[${timestamp}] ${this.config.device.name}: ${status} (${downtimeDuration} minutes)`);
+      console.log(`[${timestamp}] ${targetName}: ${status} (${downtimeDuration} minutes)`);
     }
   }
 

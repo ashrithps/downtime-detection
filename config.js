@@ -6,6 +6,11 @@ function loadConfig() {
       apiKey: process.env.TAILSCALE_API_KEY,
       tailnet: process.env.TAILSCALE_TAILNET
     },
+    cloudflare: {
+      apiToken: process.env.CLOUDFLARE_API_TOKEN,
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+      tunnelName: process.env.CLOUDFLARE_TUNNEL_NAME || process.env.DEVICE_NAME || 'apple-tv'
+    },
     device: {
       name: process.env.DEVICE_NAME || 'apple-tv'
     },
@@ -33,13 +38,38 @@ function loadConfig() {
 }
 
 function validateConfig(config) {
+  // Check if using Tailscale or Cloudflare
+  const usingTailscale = config.tailscale.apiKey && config.tailscale.tailnet;
+  const usingCloudflare = config.cloudflare.apiToken && config.cloudflare.accountId;
+  
+  if (!usingTailscale && !usingCloudflare) {
+    throw new Error('Must configure either Tailscale (TAILSCALE_API_KEY, TAILSCALE_TAILNET) or Cloudflare (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID)');
+  }
+  
+  if (usingTailscale && usingCloudflare) {
+    throw new Error('Cannot use both Tailscale and Cloudflare configurations. Choose one.');
+  }
+  
   const required = [
-    { key: 'TAILSCALE_API_KEY', value: config.tailscale.apiKey },
-    { key: 'TAILSCALE_TAILNET', value: config.tailscale.tailnet },
     { key: 'DEVICE_NAME', value: config.device.name },
     { key: 'VENDOR_PHONE_NUMBER', value: config.notifications.phoneNumbers.length > 0 ? config.notifications.phoneNumbers.join(',') : null },
     { key: 'API_KEY', value: config.api.key }
   ];
+  
+  // Add provider-specific required fields
+  if (usingTailscale) {
+    required.push(
+      { key: 'TAILSCALE_API_KEY', value: config.tailscale.apiKey },
+      { key: 'TAILSCALE_TAILNET', value: config.tailscale.tailnet }
+    );
+  }
+  
+  if (usingCloudflare) {
+    required.push(
+      { key: 'CLOUDFLARE_API_TOKEN', value: config.cloudflare.apiToken },
+      { key: 'CLOUDFLARE_ACCOUNT_ID', value: config.cloudflare.accountId }
+    );
+  }
   
   for (const field of required) {
     if (!field.value || field.value === '') {
