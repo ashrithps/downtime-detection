@@ -13,15 +13,31 @@ class DowntimeMonitor {
 
   async start() {
     console.log('Starting downtime monitoring system...');
-    console.log(`Monitoring device: ${this.config.device.name}`);
-    console.log(`Check interval: ${this.config.checkInterval.minutes} minutes`);
-    console.log(`Alert threshold: ${this.config.alertThreshold.minutes} minutes`);
-    console.log(`Notification phones: ${this.config.notifications.phoneNumbers.join(', ')}`);
+    
+    // Determine which provider is being used
+    const usingCloudflare = this.config.cloudflare.apiToken && this.config.cloudflare.accountId;
+    const usingTailscale = this.config.tailscale.apiKey && this.config.tailscale.tailnet;
+    
+    if (usingCloudflare) {
+      console.log(`🔄 Provider: Cloudflare Tunnels`);
+      console.log(`📍 Monitoring tunnel: ${this.config.cloudflare.tunnelName}`);
+    } else if (usingTailscale) {
+      console.log(`🔄 Provider: Tailscale`);
+      console.log(`📍 Monitoring device: ${this.config.device.name}`);
+    }
+    
+    console.log(`⏰ Check interval: ${this.config.checkInterval.minutes} minutes`);
+    console.log(`🚨 Alert threshold: ${this.config.alertThreshold.minutes} minutes`);
+    console.log(`📱 Notification phones: ${this.config.notifications.phoneNumbers.join(', ')}`);
     console.log('---');
 
     await this.checkSystemStatus();
 
     this.detector = new DowntimeDetector(this.config);
+
+    // Run initial check to show current status
+    console.log('🔍 Running initial status check...');
+    await this.detector.checkDeviceStatus();
 
     // Wait for WhatsApp client to be ready before starting API server
     console.log('⏳ Waiting for WhatsApp client to be ready...');
@@ -46,6 +62,7 @@ class DowntimeMonitor {
     this.apiServer.start();
 
     this.cronJob = cron.schedule(this.config.checkInterval.cronExpression, async () => {
+      console.log(`🔍 [${new Date().toISOString()}] Running scheduled check...`);
       await this.detector.checkDeviceStatus();
     });
 
@@ -83,25 +100,53 @@ class DowntimeMonitor {
   async checkSystemStatus() {
     console.log('Checking system status...');
     
-    // Check Tailscale API
-    const TailscaleClient = require('./tailscale-client');
-    const tailscaleClient = new TailscaleClient(this.config.tailscale.apiKey, this.config.tailscale.tailnet);
+    // Determine which provider to check
+    const usingCloudflare = this.config.cloudflare.apiToken && this.config.cloudflare.accountId;
+    const usingTailscale = this.config.tailscale.apiKey && this.config.tailscale.tailnet;
     
-    console.log('📡 Tailscale API: Testing connection...');
-    const tailscaleStatus = await tailscaleClient.testConnection();
-    
-    if (tailscaleStatus.success) {
-      console.log('✅ Tailscale API: Connected successfully');
+    if (usingCloudflare) {
+      // Check Cloudflare API
+      const CloudflareClient = require('./cloudflare-client');
+      const cloudflareClient = new CloudflareClient(this.config.cloudflare.apiToken, this.config.cloudflare.accountId);
       
-      // Check if target device exists
-      try {
-        const deviceStatus = await tailscaleClient.getDeviceStatus(this.config.device.name);
-        console.log(`📱 Target Device (${this.config.device.name}): Found - Status: ${deviceStatus.online ? 'ONLINE' : 'OFFLINE'}`);
-      } catch (error) {
-        console.log(`❌ Target Device (${this.config.device.name}): ${error.message}`);
+      console.log('🌐 Cloudflare API: Testing connection...');
+      const cloudflareStatus = await cloudflareClient.testConnection();
+      
+      if (cloudflareStatus.success) {
+        console.log('✅ Cloudflare API: Connected successfully');
+        
+        // Check if target tunnel exists
+        try {
+          const tunnelStatus = await cloudflareClient.getTunnelStatus(this.config.cloudflare.tunnelName);
+          console.log(`🚇 Target Tunnel (${this.config.cloudflare.tunnelName}): Found - Status: ${tunnelStatus.status.toUpperCase()} (${tunnelStatus.online ? 'ONLINE' : 'OFFLINE'})`);
+          console.log(`🔗 Active Connections: ${tunnelStatus.connections.length}`);
+        } catch (error) {
+          console.log(`❌ Target Tunnel (${this.config.cloudflare.tunnelName}): ${error.message}`);
+        }
+      } else {
+        console.log(`❌ Cloudflare API: ${cloudflareStatus.message}`);
       }
-    } else {
-      console.log(`❌ Tailscale API: ${tailscaleStatus.message}`);
+    } else if (usingTailscale) {
+      // Check Tailscale API
+      const TailscaleClient = require('./tailscale-client');
+      const tailscaleClient = new TailscaleClient(this.config.tailscale.apiKey, this.config.tailscale.tailnet);
+      
+      console.log('📡 Tailscale API: Testing connection...');
+      const tailscaleStatus = await tailscaleClient.testConnection();
+      
+      if (tailscaleStatus.success) {
+        console.log('✅ Tailscale API: Connected successfully');
+        
+        // Check if target device exists
+        try {
+          const deviceStatus = await tailscaleClient.getDeviceStatus(this.config.device.name);
+          console.log(`📱 Target Device (${this.config.device.name}): Found - Status: ${deviceStatus.online ? 'ONLINE' : 'OFFLINE'}`);
+        } catch (error) {
+          console.log(`❌ Target Device (${this.config.device.name}): ${error.message}`);
+        }
+      } else {
+        console.log(`❌ Tailscale API: ${tailscaleStatus.message}`);
+      }
     }
     
     // WhatsApp connection will be checked when DowntimeDetector is created
