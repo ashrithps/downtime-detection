@@ -108,7 +108,7 @@ class WhatsAppClient {
       .replace(/{{deviceName}}/g, deviceName)
       .replace(/{{duration}}/g, duration)
       .replace(/{{timestamp}}/g, istTime)
-      .split('\\n').join('\n'); // Convert all \n sequences to actual newlines
+      .replace(/\\n/g, '\n'); // Convert all \n sequences to actual newlines
   }
 
   async sendToMultipleRecipients(phoneNumbers, message) {
