@@ -16,8 +16,8 @@ function loadConfig() {
     },
     notifications: {
       phoneNumbers: process.env.VENDOR_PHONE_NUMBER ? process.env.VENDOR_PHONE_NUMBER.split(',').map(num => num.trim()) : [],
-      downtimeAlertMessage: process.env.DOWNTIME_ALERT_MESSAGE || '🚨 INTERNET DOWNTIME ALERT 🚨\\n\\nDevice: {{deviceName}}\\nStatus: OFFLINE\\nDuration: {{duration}} minutes\\n\\nPlease check the internet connection immediately.\\n\\nTime: {{timestamp}}',
-      recoveryMessage: process.env.RECOVERY_MESSAGE || '✅ INTERNET RECOVERED\\n\\nDevice: {{deviceName}}\\nStatus: ONLINE\\nDowntime Duration: {{duration}} minutes\\n\\nConnection has been restored.\\n\\nTime: {{timestamp}}',
+      downtimeAlertMessage: process.env.DOWNTIME_ALERT_MESSAGE || 'Hello Sir,\n\nThe internet at {{deviceName}} has been down for {{duration}} minutes now. Could you please look into this?\n\nTime: {{timestamp}}',
+      recoveryMessage: process.env.RECOVERY_MESSAGE || 'Good news! The internet at {{deviceName}} is back online now. It was down for {{duration}} minutes.\n\nTime: {{timestamp}}',
       repeatAlertInterval: parseInt(process.env.REPEAT_ALERT_INTERVAL_MINUTES) || 60
     },
     alertThreshold: {
